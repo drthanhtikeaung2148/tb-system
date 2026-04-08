@@ -2,64 +2,65 @@
 <html>
 <head>
   <title>TB-Link</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
-  <style>
-    body { font-family: Arial; padding:20px; background:#f4f6f8; }
-    .card { background:white; padding:15px; border-radius:10px; margin-bottom:15px; }
-    input, select { width:100%; padding:8px; margin:5px 0; }
-    button { padding:10px; width:100%; background:#27ae60; color:white; border:none; }
-  </style>
+  <!-- ✅ 1. ADD THIS (Supabase library) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 
 <body>
 
-<h2>🧾 TB-Link</h2>
-
-<div class="card">
-  <h3>👤 Patient</h3>
+  <!-- Your form -->
   <input id="name" placeholder="Name">
   <input id="age" placeholder="Age">
-</div>
 
-<div class="card">
-  <h3>Diagnosis</h3>
   <select id="diagnosis">
     <option>Confirmed TB</option>
     <option>Clinically Diagnosed TB</option>
     <option>Not TB</option>
   </select>
-</div>
 
-<button onclick="save()">Submit</button>
+  <!-- ✅ 2. BUTTON -->
+  <button onclick="saveData()">Submit</button>
 
-<script>
-const supabaseClient = supabase.createClient(
-  "PASTE_YOUR_URL",
-  "PASTE_YOUR_KEY"
-);
 
-async function save() {
-  const patient_id = "TB-" + Date.now();
-  const episode_id = "EP-" + Date.now();
+  <!-- ✅ 3. ADD ALL SCRIPTS HERE -->
+  <script>
+    // 🔑 Supabase connection (TOP)
+    const supabaseUrl = "https://uvkuyrebxpcjqjlsmfgr.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2a3V5cmVieHBjanFqbHNtZmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Mjg2MzksImV4cCI6MjA5MTIwNDYzOX0.YDSvhyHrufJMhfz37ZGSY6-11Ebkxsg-ErIh43Aw-DA";
 
-  const { error } = await supabaseClient
-    .from('tb_data')
-    .insert([{
-      patient_id,
-      episode_id,
-      name: document.getElementById("name").value,
-      age: document.getElementById("age").value,
-      diagnosis: document.getElementById("diagnosis").value
-    }]);
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-  if(error){
-    alert("Error: " + error.message);
-  } else {
-    alert("Saved!");
-  }
-}
-</script>
+
+    // 💾 SAVE FUNCTION (PASTE HERE)
+    async function saveData() {
+      const patient_id = "TB-" + Date.now();
+      const episode_id = "EP-" + Date.now();
+
+      const name = document.getElementById("name").value;
+      const age = document.getElementById("age").value;
+      const diagnosis = document.getElementById("diagnosis").value;
+
+      const { error } = await supabaseClient
+        .from("tb_data")
+        .insert([
+          {
+            patient_id: patient_id,
+            episode_id: episode_id,
+            name: name,
+            age: age,
+            diagnosis: diagnosis,
+            created_at: new Date()
+          }
+        ]);
+
+      if (error) {
+        alert("❌ Error: " + error.message);
+      } else {
+        alert("✅ Saved successfully!");
+      }
+    }
+  </script>
 
 </body>
 </html>
