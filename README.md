@@ -1,2 +1,2 @@
-# tb-system
+# tb-link
 ntp-reporting-tool
