@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TB-Link</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+  <style>
+    body { font-family: Arial; padding:20px; background:#f4f6f8; }
+    .card { background:white; padding:15px; border-radius:10px; margin-bottom:15px; }
+    input, select { width:100%; padding:8px; margin:5px 0; }
+    button { padding:10px; width:100%; background:#27ae60; color:white; border:none; }
+  </style>
+</head>
+
+<body>
+
+<h2>🧾 TB-Link</h2>
+
+<div class="card">
+  <h3>👤 Patient</h3>
+  <input id="name" placeholder="Name">
+  <input id="age" placeholder="Age">
+</div>
+
+<div class="card">
+  <h3>Diagnosis</h3>
+  <select id="diagnosis">
+    <option>Confirmed TB</option>
+    <option>Clinically Diagnosed TB</option>
+    <option>Not TB</option>
+  </select>
+</div>
+
+<button onclick="save()">Submit</button>
+
+<script>
+const supabaseClient = supabase.createClient(
+  "PASTE_YOUR_URL",
+  "PASTE_YOUR_KEY"
+);
+
+async function save() {
+  const patient_id = "TB-" + Date.now();
+  const episode_id = "EP-" + Date.now();
+
+  const { error } = await supabaseClient
+    .from('tb_data')
+    .insert([{
+      patient_id,
+      episode_id,
+      name: document.getElementById("name").value,
+      age: document.getElementById("age").value,
+      diagnosis: document.getElementById("diagnosis").value
+    }]);
+
+  if(error){
+    alert("Error: " + error.message);
+  } else {
+    alert("Saved!");
+  }
+}
+</script>
+
+</body>
+</html>
