@@ -3,7 +3,6 @@
 <head>
   <title>TB-Link</title>
 
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 
@@ -41,153 +40,8 @@
 <!-- ================= SCRIPT ================= -->
 <script>
 
-// 🔥 PUT YOUR REAL VALUES HERE
-const supabaseUrl = "<!DOCTYPE html>
-<html>
-<head>
-  <title>TB-Link</title>
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-</head>
-
-<body>
-
-<h2>TB System</h2>
-
-<!-- ================= FORM ================= -->
-<input id="name" placeholder="Name">
-<input id="age" placeholder="Age">
-
-<select id="sex">
-  <option>Male</option>
-  <option>Female</option>
-</select>
-
-<select id="diagnosis">
-  <option>Confirmed TB</option>
-  <option>Clinical TB</option>
-</select>
-
-<button onclick="savePatient()">Save Patient</button>
-
-<hr>
-
-<input id="episode_id" placeholder="Episode ID">
-<input id="weight" placeholder="Weight">
-
-<button onclick="addFollowup()">Add Follow-up</button>
-
-<hr>
-
-<div id="dashboard"></div>
-
-<!-- ================= SCRIPT ================= -->
-<script>
-
-// 🔥 PUT YOUR REAL VALUES HERE
+// ✅ PUT YOUR REAL VALUES HERE
 const supabaseUrl = "https://YOUR_PROJECT.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2a3V5cmVieHBjanFqbHNtZmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Mjg2MzksImV4cCI6MjA5MTIwNDYzOX0.YDSvhyHrufJMhfz37ZGSY6-11Ebkxsg-ErIh43Aw-DA";
-
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-// ================= SAVE PATIENT =================
-async function savePatient() {
-
-  const name = document.getElementById("name").value;
-  const age = document.getElementById("age").value;
-  const sex = document.getElementById("sex").value;
-  const diagnosis = document.getElementById("diagnosis").value;
-
-  const { data: patient, error: pError } = await supabaseClient
-    .from("patients")
-    .insert([{ name, age, sex }])
-    .select()
-    .single();
-
-  if (pError) {
-    alert("Patient Error: " + pError.message);
-    return;
-  }
-
-  const { error: eError } = await supabaseClient
-    .from("episodes")
-    .insert([
-      {
-        patient_id: patient.id,
-        diagnosis: diagnosis,
-        facility: "NTP",
-        created_at: new Date()
-      }
-    ]);
-
-  if (eError) {
-    alert("Episode Error: " + eError.message);
-    return;
-  }
-
-  alert("✅ Saved!");
-  loadDashboard();
-}
-
-// ================= FOLLOW-UP =================
-async function addFollowup() {
-
-  const episode_id = document.getElementById("episode_id").value;
-  const weight = document.getElementById("weight").value;
-
-  const { error } = await supabaseClient
-    .from("followups")
-    .insert([
-      {
-        episode_id,
-        weight,
-        visit_date: new Date(),
-        outcome: "On Treatment"
-      }
-    ]);
-
-  if (error) {
-    alert("Followup Error: " + error.message);
-  } else {
-    alert("✅ Follow-up saved!");
-  }
-}
-
-// ================= DASHBOARD =================
-async function loadDashboard() {
-
-  const { data, error } = await supabaseClient
-    .from("episodes")
-    .select("id, diagnosis, patients(name, age)");
-
-  if (error) {
-    console.log(error);
-    return;
-  }
-
-  let html = "<h3>TB Dashboard</h3>";
-
-  data.forEach(row => {
-    html += `
-      <div style="border:1px solid #ccc; padding:10px; margin:10px;">
-        <b>${row.patients.name}</b> (${row.patients.age})
-        <br>Diagnosis: ${row.diagnosis}
-        <br>Episode ID: ${row.id}
-      </div>
-    `;
-  });
-
-  document.getElementById("dashboard").innerHTML = html;
-}
-
-// LOAD
-loadDashboard();
-
-</script>
-
-</body>
-</html>";
 const supabaseKey = "YOUR_ANON_KEY";
 
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
@@ -211,7 +65,7 @@ async function savePatient() {
     return;
   }
 
-  const { error: eError } = await supabaseClient
+  const { data: episode, error: eError } = await supabaseClient
     .from("episodes")
     .insert([
       {
@@ -220,12 +74,17 @@ async function savePatient() {
         facility: "NTP",
         created_at: new Date()
       }
-    ]);
+    ])
+    .select()
+    .single();
 
   if (eError) {
     alert("Episode Error: " + eError.message);
     return;
   }
+
+  // 🔥 AUTO FILL EPISODE ID (IMPORTANT)
+  document.getElementById("episode_id").value = episode.id;
 
   alert("✅ Saved!");
   loadDashboard();
@@ -243,8 +102,7 @@ async function addFollowup() {
       {
         episode_id,
         weight,
-        visit_date: new Date(),
-        outcome: "On Treatment"
+        visit_date: new Date()
       }
     ]);
 
@@ -272,7 +130,7 @@ async function loadDashboard() {
   data.forEach(row => {
     html += `
       <div style="border:1px solid #ccc; padding:10px; margin:10px;">
-        <b>${row.patients.name}</b> (${row.patients.age})
+        <b>${row.patients?.name || "Unknown"}</b> (${row.patients?.age || ""})
         <br>Diagnosis: ${row.diagnosis}
         <br>Episode ID: ${row.id}
       </div>
