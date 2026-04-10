@@ -2,57 +2,72 @@
 <html>
 <head>
   <title>TB-Link</title>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 
-<body>
+<body style="font-family:sans-serif;">
 
-<h2>TB System</h2>
+<h2>TB-Link System</h2>
 
-<!-- ================= FORM ================= -->
-<input id="name" placeholder="Name">
-<input id="age" placeholder="Age">
+<div style="display:flex;">
 
-<select id="sex">
-  <option>Male</option>
-  <option>Female</option>
-</select>
+  <!-- LEFT MENU -->
+  <div style="width:220px; border-right:1px solid #ccc; padding:10px;">
+    <button onclick="showTab('screening')">1. Screening</button><br><br>
+    <button onclick="showTab('diagnosis')">2. Diagnosis</button><br><br>
+    <button onclick="showTab('treatment')">3. Treatment</button><br><br>
+    <button onclick="showTab('followup')">4. Follow-up</button><br><br>
+    <button onclick="showTab('outcome')">5. Outcome</button>
+  </div>
 
-<select id="diagnosis">
-  <option>Confirmed TB</option>
-  <option>Clinical TB</option>
-</select>
+  <!-- RIGHT PANEL -->
+  <div style="flex:1; padding:20px;">
+    <div id="content"></div>
+  </div>
 
-<button onclick="savePatient()">Save Patient</button>
+</div>
 
-<hr>
-
-<input id="episode_id" placeholder="Episode ID">
-<input id="weight" placeholder="Weight">
-
-<button onclick="addFollowup()">Add Follow-up</button>
-
-<hr>
-
-<div id="dashboard"></div>
-
-<!-- ================= SCRIPT ================= -->
 <script>
 
-// ✅ PUT YOUR REAL VALUES HERE
+// ================= CONFIG =================
 const supabaseUrl = "https://YOUR_PROJECT.supabase.co";
 const supabaseKey = "YOUR_ANON_KEY";
 
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-// ================= SAVE PATIENT =================
+let currentEpisodeId = null;
+
+// ================= NAVIGATION =================
+function showTab(tab) {
+  if (tab === "screening") renderScreening();
+  if (tab === "diagnosis") renderDiagnosis();
+  if (tab === "treatment") renderTreatment();
+  if (tab === "followup") renderFollowup();
+  if (tab === "outcome") renderOutcome();
+}
+
+// ================= SCREENING =================
+function renderScreening() {
+  document.getElementById("content").innerHTML = `
+    <h3>🩺 Screening</h3>
+
+    <input id="name" placeholder="Name"><br><br>
+    <input id="age" placeholder="Age"><br><br>
+
+    <select id="sex">
+      <option>Male</option>
+      <option>Female</option>
+    </select><br><br>
+
+    <button onclick="savePatient()">Save & Create Episode</button>
+  `;
+}
+
 async function savePatient() {
 
   const name = document.getElementById("name").value;
   const age = document.getElementById("age").value;
   const sex = document.getElementById("sex").value;
-  const diagnosis = document.getElementById("diagnosis").value;
 
   const { data: patient, error: pError } = await supabaseClient
     .from("patients")
@@ -60,88 +75,148 @@ async function savePatient() {
     .select()
     .single();
 
-  if (pError) {
-    alert("Patient Error: " + pError.message);
-    return;
-  }
+  if (pError) return alert(pError.message);
 
-  const { data: episode, error: eError } = await supabaseClient
+  const { data: episode } = await supabaseClient
     .from("episodes")
-    .insert([
-      {
-        patient_id: patient.id,
-        diagnosis: diagnosis,
-        facility: "NTP",
-        created_at: new Date()
-      }
-    ])
+    .insert([{ patient_id: patient.id }])
     .select()
     .single();
 
-  if (eError) {
-    alert("Episode Error: " + eError.message);
-    return;
-  }
+  currentEpisodeId = episode.id;
 
-  // 🔥 AUTO FILL EPISODE ID (IMPORTANT)
-  document.getElementById("episode_id").value = episode.id;
+  alert("✅ Patient & Episode created");
+}
 
-  alert("✅ Saved!");
-  loadDashboard();
+// ================= DIAGNOSIS =================
+function renderDiagnosis() {
+  document.getElementById("content").innerHTML = `
+    <h3>🧪 Diagnosis</h3>
+
+    <select id="xpert">
+      <option>MTB detected</option>
+      <option>MTB detected Rif resistant</option>
+    </select><br><br>
+
+    <button onclick="saveDiagnosis()">Save Diagnosis</button>
+  `;
+}
+
+async function saveDiagnosis() {
+
+  const xpert = document.getElementById("xpert").value;
+  const resistance = xpert.includes("Rif") ? "RR-TB" : "DS-TB";
+
+  await supabaseClient.from("lab_results").insert([{
+    episode_id: currentEpisodeId,
+    xpert_result: xpert,
+    resistance_classification: resistance
+  }]);
+
+  alert("✅ Diagnosis saved");
+}
+
+// ================= TREATMENT =================
+function renderTreatment() {
+  document.getElementById("content").innerHTML = `
+    <h3>💊 Treatment</h3>
+
+    <input id="resistance" placeholder="Auto-loaded" disabled><br><br>
+    <input id="regimen" placeholder="Auto-generated" disabled><br><br>
+
+    <button onclick="loadTreatment()">Load Decision</button><br><br>
+    <button onclick="startTreatment()">Start Treatment</button>
+  `;
+}
+
+function getRegimen(res) {
+  if (res === "DS-TB") return "First-line";
+  if (res === "RR-TB") return "MDR regimen";
+}
+
+async function loadTreatment() {
+
+  const { data } = await supabaseClient
+    .from("lab_results")
+    .select("*")
+    .eq("episode_id", currentEpisodeId)
+    .limit(1);
+
+  const res = data[0].resistance_classification;
+
+  document.getElementById("resistance").value = res;
+  document.getElementById("regimen").value = getRegimen(res);
+}
+
+async function startTreatment() {
+
+  const regimen = document.getElementById("regimen").value;
+
+  await supabaseClient.from("treatments").insert([{
+    episode_id: currentEpisodeId,
+    regimen,
+    start_date: new Date(),
+    status: "On Treatment"
+  }]);
+
+  alert("✅ Treatment started");
 }
 
 // ================= FOLLOW-UP =================
+function renderFollowup() {
+  document.getElementById("content").innerHTML = `
+    <h3>📊 Follow-up</h3>
+
+    <input id="weight" placeholder="Weight"><br><br>
+
+    <button onclick="addFollowup()">Add Follow-up</button>
+  `;
+}
+
 async function addFollowup() {
 
-  const episode_id = document.getElementById("episode_id").value;
   const weight = document.getElementById("weight").value;
 
-  const { error } = await supabaseClient
-    .from("followups")
-    .insert([
-      {
-        episode_id,
-        weight,
-        visit_date: new Date()
-      }
-    ]);
+  await supabaseClient.from("followups").insert([{
+    episode_id: currentEpisodeId,
+    weight,
+    visit_date: new Date()
+  }]);
 
-  if (error) {
-    alert("Followup Error: " + error.message);
-  } else {
-    alert("✅ Follow-up saved!");
-  }
+  alert("✅ Follow-up saved");
 }
 
-// ================= DASHBOARD =================
-async function loadDashboard() {
+// ================= OUTCOME =================
+function renderOutcome() {
+  document.getElementById("content").innerHTML = `
+    <h3>🏁 Outcome</h3>
 
-  const { data, error } = await supabaseClient
-    .from("episodes")
-    .select("id, diagnosis, patients(name, age)");
+    <select id="outcome">
+      <option>Cured</option>
+      <option>Completed</option>
+      <option>Failed</option>
+      <option>Died</option>
+    </select><br><br>
 
-  if (error) {
-    console.log(error);
-    return;
-  }
-
-  let html = "<h3>TB Dashboard</h3>";
-
-  data.forEach(row => {
-    html += `
-      <div style="border:1px solid #ccc; padding:10px; margin:10px;">
-        <b>${row.patients?.name || "Unknown"}</b> (${row.patients?.age || ""})
-        <br>Diagnosis: ${row.diagnosis}
-        <br>Episode ID: ${row.id}
-      </div>
-    `;
-  });
-
-  document.getElementById("dashboard").innerHTML = html;
+    <button onclick="saveOutcome()">Save Outcome</button>
+  `;
 }
 
-// LOAD
-loadDashboard();
+async function saveOutcome() {
+
+  const outcome = document.getElementById("outcome").value;
+
+  await supabaseClient.from("outcomes").insert([{
+    episode_id: currentEpisodeId,
+    outcome,
+    outcome_date: new Date()
+  }]);
+
+  alert("✅ Outcome saved");
+}
+
+// DEFAULT SCREEN
+showTab("screening");
 
 </script>
 
