@@ -1,32 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>TB-Link</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-</head>
-
-<body style="font-family:sans-serif;">
-
-<h2>TB-Link System</h2>
-
-<div style="display:flex;">
-
-  <!-- LEFT MENU -->
-  <div style="width:220px; border-right:1px solid #ccc; padding:10px;">
-    <button onclick="showTab('screening')">1. Screening</button><br><br>
-    <button onclick="showTab('diagnosis')">2. Diagnosis</button><br><br>
-    <button onclick="showTab('treatment')">3. Treatment</button><br><br>
-    <button onclick="showTab('followup')">4. Follow-up</button><br><br>
-    <button onclick="showTab('outcome')">5. Outcome</button>
-  </div>
-
-  <!-- RIGHT PANEL -->
-  <div style="flex:1; padding:20px;">
-    <div id="content"></div>
-  </div>
-
-</div>
-
+<button onclick="showTab('patients')">👥 Patients</button><br><br>
 <script>
 
 // ================= CONFIG =================
@@ -39,6 +11,7 @@ let currentEpisodeId = null;
 
 // ================= NAVIGATION =================
 function showTab(tab) {
+  if (tab === "patients") renderPatients();
   if (tab === "screening") renderScreening();
   if (tab === "diagnosis") renderDiagnosis();
   if (tab === "treatment") renderTreatment();
@@ -46,36 +19,80 @@ function showTab(tab) {
   if (tab === "outcome") renderOutcome();
 }
 
+// ================= PATIENT LIST =================
+function renderPatients() {
+  document.getElementById("content").innerHTML = `
+    <h3>👥 Patients</h3>
+    <input id="search" placeholder="Search..." onkeyup="loadPatients()"><br><br>
+    <div id="patientList"></div>
+  `;
+  loadPatients();
+}
+
+async function loadPatients() {
+  const keyword = document.getElementById("search")?.value || "";
+
+  const { data } = await supabaseClient
+    .from("patients")
+    .select("id, name, age")
+    .ilike("name", `%${keyword}%`);
+
+  let html = "";
+
+  data.forEach(p => {
+    html += `
+      <div style="border:1px solid #ccc; padding:10px; margin:5px; cursor:pointer;"
+           onclick="selectPatient('${p.id}')">
+        <b>${p.name}</b> (${p.age})
+      </div>
+    `;
+  });
+
+  document.getElementById("patientList").innerHTML = html || "No patients";
+}
+
+async function selectPatient(patientId) {
+  const { data } = await supabaseClient
+    .from("episodes")
+    .select("*")
+    .eq("patient_id", patientId)
+    .limit(1);
+
+  if (!data.length) {
+    alert("No episode found");
+    return;
+  }
+
+  currentEpisodeId = data[0].id;
+
+  alert("✅ Patient selected");
+  showTab("diagnosis");
+}
+
 // ================= SCREENING =================
 function renderScreening() {
   document.getElementById("content").innerHTML = `
     <h3>🩺 Screening</h3>
-
     <input id="name" placeholder="Name"><br><br>
     <input id="age" placeholder="Age"><br><br>
-
     <select id="sex">
       <option>Male</option>
       <option>Female</option>
     </select><br><br>
-
     <button onclick="savePatient()">Save & Create Episode</button>
   `;
 }
 
 async function savePatient() {
-
   const name = document.getElementById("name").value;
   const age = document.getElementById("age").value;
   const sex = document.getElementById("sex").value;
 
-  const { data: patient, error: pError } = await supabaseClient
+  const { data: patient } = await supabaseClient
     .from("patients")
     .insert([{ name, age, sex }])
     .select()
     .single();
-
-  if (pError) return alert(pError.message);
 
   const { data: episode } = await supabaseClient
     .from("episodes")
@@ -92,18 +109,15 @@ async function savePatient() {
 function renderDiagnosis() {
   document.getElementById("content").innerHTML = `
     <h3>🧪 Diagnosis</h3>
-
     <select id="xpert">
       <option>MTB detected</option>
       <option>MTB detected Rif resistant</option>
     </select><br><br>
-
     <button onclick="saveDiagnosis()">Save Diagnosis</button>
   `;
 }
 
 async function saveDiagnosis() {
-
   const xpert = document.getElementById("xpert").value;
   const resistance = xpert.includes("Rif") ? "RR-TB" : "DS-TB";
 
@@ -120,22 +134,18 @@ async function saveDiagnosis() {
 function renderTreatment() {
   document.getElementById("content").innerHTML = `
     <h3>💊 Treatment</h3>
-
-    <input id="resistance" placeholder="Auto-loaded" disabled><br><br>
-    <input id="regimen" placeholder="Auto-generated" disabled><br><br>
-
+    <input id="resistance" disabled><br><br>
+    <input id="regimen" disabled><br><br>
     <button onclick="loadTreatment()">Load Decision</button><br><br>
     <button onclick="startTreatment()">Start Treatment</button>
   `;
 }
 
 function getRegimen(res) {
-  if (res === "DS-TB") return "First-line";
-  if (res === "RR-TB") return "MDR regimen";
+  return res === "RR-TB" ? "MDR regimen" : "First-line";
 }
 
 async function loadTreatment() {
-
   const { data } = await supabaseClient
     .from("lab_results")
     .select("*")
@@ -149,14 +159,12 @@ async function loadTreatment() {
 }
 
 async function startTreatment() {
-
   const regimen = document.getElementById("regimen").value;
 
   await supabaseClient.from("treatments").insert([{
     episode_id: currentEpisodeId,
     regimen,
-    start_date: new Date(),
-    status: "On Treatment"
+    start_date: new Date()
   }]);
 
   alert("✅ Treatment started");
@@ -166,15 +174,12 @@ async function startTreatment() {
 function renderFollowup() {
   document.getElementById("content").innerHTML = `
     <h3>📊 Follow-up</h3>
-
     <input id="weight" placeholder="Weight"><br><br>
-
     <button onclick="addFollowup()">Add Follow-up</button>
   `;
 }
 
 async function addFollowup() {
-
   const weight = document.getElementById("weight").value;
 
   await supabaseClient.from("followups").insert([{
@@ -190,20 +195,17 @@ async function addFollowup() {
 function renderOutcome() {
   document.getElementById("content").innerHTML = `
     <h3>🏁 Outcome</h3>
-
     <select id="outcome">
       <option>Cured</option>
       <option>Completed</option>
       <option>Failed</option>
       <option>Died</option>
     </select><br><br>
-
     <button onclick="saveOutcome()">Save Outcome</button>
   `;
 }
 
 async function saveOutcome() {
-
   const outcome = document.getElementById("outcome").value;
 
   await supabaseClient.from("outcomes").insert([{
@@ -215,10 +217,7 @@ async function saveOutcome() {
   alert("✅ Outcome saved");
 }
 
-// DEFAULT SCREEN
-showTab("screening");
+// DEFAULT
+showTab("patients");
 
 </script>
-
-</body>
-</html>
