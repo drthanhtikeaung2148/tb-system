@@ -2,7 +2,6 @@
 <html>
 <head>
   <title>TB-Link</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 
 <body style="font-family:sans-serif;">
@@ -30,13 +29,9 @@
 
 <script>
 
-// ================= CONFIG =================
-const supabaseUrl = "https://uvkuyrebxpcjqjlsmfgr.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2a3V5cmVieHBjanFqbHNtZmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Mjg2MzksImV4cCI6MjA5MTIwNDYzOX0.YDSvhyHrufJMhfz37ZGSY6-11Ebkxsg-ErIh43Aw-DA"; // 🔥 use sb_publishable key
-
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-let currentEpisodeId = null;
+// 🔥 CONFIG (PUT YOUR REAL VALUES)
+const SUPABASE_URL = "https://uvkuyrebxpcjqjlsmfgr.supabase.co";
+const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2a3V5cmVieHBjanFqbHNtZmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Mjg2MzksImV4cCI6MjA5MTIwNDYzOX0.YDSvhyHrufJMhfz37ZGSY6-11Ebkxsg-ErIh43Aw-DA";
 
 // ================= NAV =================
 function showTab(tab) {
@@ -52,23 +47,26 @@ function showTab(tab) {
 function renderPatients() {
   document.getElementById("content").innerHTML = `
     <h3>👥 Patients</h3>
-    <input id="search" placeholder="Search..." onkeyup="loadPatients()"><br><br>
+    <button onclick="loadPatients()">Refresh</button><br><br>
     <div id="patientList"></div>
   `;
   loadPatients();
 }
 
 async function loadPatients() {
-  const keyword = document.getElementById("search")?.value || "";
 
-  const { data } = await supabaseClient
-    .from("patients")
-    .select("*")
-    .ilike("name", `%${keyword}%`);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/patients?select=*`, {
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY
+    }
+  });
+
+  const data = await res.json();
 
   let html = "";
 
-  data?.forEach(p => {
+  data.forEach(p => {
     html += `
       <div style="border:1px solid #ccc; padding:10px; margin:5px; cursor:pointer;"
            onclick="selectPatient('${p.id}')">
@@ -82,14 +80,17 @@ async function loadPatients() {
 
 async function selectPatient(patientId) {
 
-  const { data } = await supabaseClient
-    .from("episodes")
-    .select("*")
-    .eq("patient_id", patientId)
-    .limit(1);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/episodes?patient_id=eq.${patientId}`, {
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY
+    }
+  });
+
+  const data = await res.json();
 
   if (!data.length) {
-    alert("No episode → create one from Screening");
+    alert("No episode → create from screening");
     return;
   }
 
@@ -100,6 +101,8 @@ async function selectPatient(patientId) {
 }
 
 // ================= SCREENING =================
+let currentEpisodeId = null;
+
 function renderScreening() {
   document.getElementById("content").innerHTML = `
     <h3>🩺 Screening</h3>
@@ -119,24 +122,45 @@ function renderScreening() {
 async function savePatient() {
 
   const name = document.getElementById("name").value;
-  const age = document.getElementById("age").value;
+  const age = parseInt(document.getElementById("age").value);
   const sex = document.getElementById("sex").value;
 
-  const { data: patient } = await supabaseClient
-    .from("patients")
-    .insert([{ name, age, sex }])
-    .select()
-    .single();
+  // 1. Create patient
+  const pRes = await fetch(`${SUPABASE_URL}/rest/v1/patients`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY,
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify([{ name, age, sex }])
+  });
 
-  const { data: episode } = await supabaseClient
-    .from("episodes")
-    .insert([{ patient_id: patient.id }])
-    .select()
-    .single();
+  const patient = await pRes.json();
 
-  currentEpisodeId = episode.id;
+  if (!patient[0]) {
+    alert("❌ Patient creation failed");
+    return;
+  }
 
-  alert("✅ Patient created");
+  // 2. Create episode
+  const eRes = await fetch(`${SUPABASE_URL}/rest/v1/episodes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY,
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify([{ patient_id: patient[0].id }])
+  });
+
+  const episode = await eRes.json();
+
+  currentEpisodeId = episode[0].id;
+
+  alert("✅ Patient & Episode created");
 }
 
 // ================= DIAGNOSIS =================
@@ -158,11 +182,19 @@ async function saveDiagnosis() {
   const xpert = document.getElementById("xpert").value;
   const resistance = xpert.includes("Rif") ? "RR-TB" : "DS-TB";
 
-  await supabaseClient.from("lab_results").insert([{
-    episode_id: currentEpisodeId,
-    xpert_result: xpert,
-    resistance_classification: resistance
-  }]);
+  await fetch(`${SUPABASE_URL}/rest/v1/lab_results`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY
+    },
+    body: JSON.stringify([{
+      episode_id: currentEpisodeId,
+      xpert_result: xpert,
+      resistance_classification: resistance
+    }])
+  });
 
   alert("✅ Diagnosis saved");
 }
@@ -171,42 +203,25 @@ async function saveDiagnosis() {
 function renderTreatment() {
   document.getElementById("content").innerHTML = `
     <h3>💊 Treatment</h3>
-
-    <input id="resistance" disabled><br><br>
-    <input id="regimen" disabled><br><br>
-
-    <button onclick="loadTreatment()">Load Decision</button><br><br>
     <button onclick="startTreatment()">Start Treatment</button>
   `;
 }
 
-function getRegimen(res) {
-  return res === "RR-TB" ? "MDR regimen" : "First-line";
-}
-
-async function loadTreatment() {
-
-  const { data } = await supabaseClient
-    .from("lab_results")
-    .select("*")
-    .eq("episode_id", currentEpisodeId)
-    .limit(1);
-
-  const res = data[0]?.resistance_classification;
-
-  document.getElementById("resistance").value = res;
-  document.getElementById("regimen").value = getRegimen(res);
-}
-
 async function startTreatment() {
 
-  const regimen = document.getElementById("regimen").value;
-
-  await supabaseClient.from("treatments").insert([{
-    episode_id: currentEpisodeId,
-    regimen,
-    start_date: new Date()
-  }]);
+  await fetch(`${SUPABASE_URL}/rest/v1/treatments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY
+    },
+    body: JSON.stringify([{
+      episode_id: currentEpisodeId,
+      regimen: "Standard",
+      start_date: new Date()
+    }])
+  });
 
   alert("✅ Treatment started");
 }
@@ -215,9 +230,8 @@ async function startTreatment() {
 function renderFollowup() {
   document.getElementById("content").innerHTML = `
     <h3>📊 Follow-up</h3>
-
     <input id="weight" placeholder="Weight"><br><br>
-    <button onclick="addFollowup()">Add Follow-up</button>
+    <button onclick="addFollowup()">Save</button>
   `;
 }
 
@@ -225,11 +239,19 @@ async function addFollowup() {
 
   const weight = document.getElementById("weight").value;
 
-  await supabaseClient.from("followups").insert([{
-    episode_id: currentEpisodeId,
-    weight,
-    visit_date: new Date()
-  }]);
+  await fetch(`${SUPABASE_URL}/rest/v1/followups`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY
+    },
+    body: JSON.stringify([{
+      episode_id: currentEpisodeId,
+      weight,
+      visit_date: new Date()
+    }])
+  });
 
   alert("✅ Follow-up saved");
 }
@@ -246,7 +268,7 @@ function renderOutcome() {
       <option>Died</option>
     </select><br><br>
 
-    <button onclick="saveOutcome()">Save Outcome</button>
+    <button onclick="saveOutcome()">Save</button>
   `;
 }
 
@@ -254,17 +276,25 @@ async function saveOutcome() {
 
   const outcome = document.getElementById("outcome").value;
 
-  await supabaseClient.from("outcomes").insert([{
-    episode_id: currentEpisodeId,
-    outcome,
-    outcome_date: new Date()
-  }]);
+  await fetch(`${SUPABASE_URL}/rest/v1/outcomes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": API_KEY,
+      "Authorization": "Bearer " + API_KEY
+    },
+    body: JSON.stringify([{
+      episode_id: currentEpisodeId,
+      outcome,
+      outcome_date: new Date()
+    }])
+  });
 
   alert("✅ Outcome saved");
 }
 
 // START
-showTab("patients");
+showTab("screening");
 
 </script>
 
