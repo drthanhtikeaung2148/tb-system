@@ -1,347 +1,333 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>TB-Link System</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<title>TB-Link System</title>
+<style>
+body { font-family: Arial; }
+.container { display: flex; }
+.sidebar { width: 220px; padding: 10px; }
+.content { flex: 1; padding: 20px; border-left: 1px solid #ccc; }
+button { margin: 5px 0; }
+input, select, textarea { width: 250px; margin-bottom: 10px; }
+</style>
 </head>
 
-<body style="font-family:sans-serif;">
+<body>
 
 <h2>TB-Link System</h2>
 
-<div style="display:flex;">
+<div class="container">
 
 <!-- LEFT MENU -->
-<div style="width:220px; border-right:1px solid #ccc; padding:10px;">
-  <button onclick="showTab('patients')">👥 Patients</button><br><br>
-  <button onclick="showTab('screening')">1. Screening</button><br><br>
-  <button onclick="showTab('diagnosis')">2. Diagnosis</button><br><br>
-  <button onclick="showTab('treatment')">3. Treatment</button><br><br>
-  <button onclick="showTab('followup')">4. Follow-up</button><br><br>
-  <button onclick="showTab('outcome')">5. Outcome</button><br><br>
+<div class="sidebar">
+<button onclick="showTab('screening')">1. Screening</button><br>
+<button onclick="showTab('diagnosis')">2. Diagnosis</button><br>
+<button onclick="showTab('treatment')">3. Treatment</button><br>
+<button onclick="showTab('followup')">4. Follow-up</button><br>
+<button onclick="showTab('outcome')">5. Outcome</button><br>
 </div>
 
-<!-- RIGHT -->
-<div style="flex:1; padding:20px;">
-  <div id="content"></div>
-</div>
+<!-- RIGHT CONTENT -->
+<div class="content" id="content"></div>
 
 </div>
 
 <script>
 
-// ================= CONFIG =================
-const SUPABASE_URL = "https://ggsyhzumthecewuvmgxu.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2a3V5cmVieHBjanFqbHNtZmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Mjg2MzksImV4cCI6MjA5MTIwNDYzOX0.YDSvhyHrufJMhfz37ZGSY6-11Ebkxsg-ErIh43Aw-DA";
-
-function headers(){
-  return {
-    "Content-Type":"application/json",
-    "apikey":SUPABASE_KEY,
-    "Authorization":"Bearer "+SUPABASE_KEY,
-    "Prefer":"return=representation"
-  }
-}
-
-let currentEpisodeId = null;
-let currentPatientCode = null;
-
-// ================= NAV =================
-function showTab(tab){
-  if(tab==="patients") renderPatients();
-  if(tab==="screening") renderScreening();
-  if(tab==="diagnosis") renderDiagnosis();
-  if(tab==="treatment") renderTreatment();
-  if(tab==="followup") renderFollowup();
-  if(tab==="outcome") renderOutcome();
-}
-
-// ================= CODE GENERATOR =================
-function generatePatientCode(){
-
-  const region = document.getElementById("region").value;
-  const facility = document.getElementById("facility").value;
-  const date = document.getElementById("regdate").value;
-
-  if(!region || !facility || !date) return;
-
-  const year = new Date(date).getFullYear();
-
-  let counter = localStorage.getItem("tb_counter_"+year) || 0;
-  counter++;
-  localStorage.setItem("tb_counter_"+year, counter);
-
-  const code = `${region}_${facility}_M_${counter}_${year}`;
-
-  document.getElementById("code").value = code;
+// ================= NAVIGATION =================
+function showTab(tab) {
+  if (tab === 'screening') renderScreening();
+  if (tab === 'diagnosis') renderDiagnosis();
+  if (tab === 'treatment') renderTreatment();
+  if (tab === 'followup') renderFollowup();
+  if (tab === 'outcome') renderOutcome();
 }
 
 // ================= SCREENING =================
-function renderScreening(){
+function renderScreening() {
   document.getElementById("content").innerHTML = `
-    <h3>🩺 Screening</h3>
+  <h3>🩺 Screening</h3>
 
-    Name <br><input id="name"><br><br>
-    Age <br><input id="age"><br><br>
+  Name<br><input id="name"><br>
+  Age<br><input id="age"><br>
 
-    Sex <br>
-    <select id="sex">
-      <option>Male</option><option>Female</option>
-    </select><br><br>
+  Sex<br>
+  <select id="sex">
+    <option>Male</option>
+    <option>Female</option>
+  </select><br>
 
-    Region <br>
-    <select id="region" onchange="generatePatientCode()">
-      <option value="">--select--</option>
-      <option value="YGN">Yangon</option>
-      <option value="MDY">Mandalay</option>
-    </select><br><br>
+  Region<br>
+  <select id="region" onchange="generatePatientCode()">
+    <option value="">--select--</option>
+    <option value="KCN">Kachin</option>
+    <option value="KAY">Kayah</option>
+    <option value="KRN">Kayin</option>
+    <option value="CHN">Chin</option>
+    <option value="MON">Mon</option>
+    <option value="RKH">Rakhine</option>
+    <option value="SHN_E">Shan (East)</option>
+    <option value="SHN_N">Shan (North)</option>
+    <option value="SHN_S">Shan (South)</option>
+    <option value="YGN">Yangon</option>
+    <option value="MDY">Mandalay</option>
+    <option value="SGG">Sagaing</option>
+    <option value="MGW">Magway</option>
+    <option value="BGO">Bago</option>
+    <option value="AYW">Ayeyarwady</option>
+    <option value="NPT">Nay Pyi Taw</option>
+    <option value="TNI">Tanintharyi</option>
+  </select><br>
 
-    Township <br><input id="township"><br><br>
+  Township<br><input id="township"><br>
+  Facility<br><input id="facility" oninput="generatePatientCode()"><br>
 
-    Facility <br>
-    <select id="facility" onchange="generatePatientCode()">
-      <option value="">--select--</option>
-      <option value="PANHLAING">Pan Hlaing</option>
-      <option value="BAHOSI">Bahosi</option>
-      <option value="SAKURA">Sakura</option>
-    </select><br><br>
+  Registration Date<br>
+  <input type="date" id="reg_date" onchange="generatePatientCode()"><br>
 
-    Registration Date <br>
-    <input type="date" id="regdate" onchange="generatePatientCode()"><br><br>
+  Patient Code<br>
+  <input id="patient_code" readonly><br>
 
-    Patient Code <br>
-    <input id="code" readonly><br><br>
+  Chest X-ray<br>
+  <select>
+    <option>Normal</option>
+    <option>Active TB</option>
+    <option>Suggestive of TB</option>
+    <option>Healed TB</option>
+    <option>Others</option>
+  </select><br>
 
-    <button onclick="savePatient()">Save</button>
+  NPOC Pattern<br>
+  <select>
+    <option>MTB Detected</option>
+    <option>MTB Not Detected</option>
+  </select><br>
+
+  Smear Microscopy<br>
+  <select>
+    <option>Negative</option>
+    <option>Scanty</option>
+    <option>+</option>
+    <option>++</option>
+    <option>+++</option>
+  </select><br>
+
+  <button>Save</button>
   `;
 }
 
-async function savePatient(){
+// ================= PATIENT CODE =================
+function generatePatientCode() {
+  const region = document.getElementById("region")?.value;
+  const facility = document.getElementById("facility")?.value;
+  const date = document.getElementById("reg_date")?.value;
 
-  const body = {
-    name: name.value,
-    age: age.value,
-    sex: sex.value,
-    code: code.value
-  };
+  if (!region || !facility || !date) return;
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/patients`,{
-    method:"POST",
-    headers:headers(),
-    body:JSON.stringify([body])
-  });
+  const year = new Date(date).getFullYear();
+  let counter = localStorage.getItem("counter") || 1;
 
-  const data = await res.json();
+  const code =
+    region + "_" +
+    facility.toUpperCase().replace(/\s+/g, "") +
+    "_M_" +
+    counter +
+    "_" +
+    year;
 
-  const ep = await fetch(`${SUPABASE_URL}/rest/v1/episodes`,{
-    method:"POST",
-    headers:headers(),
-    body:JSON.stringify([{patient_id:data[0].id}])
-  });
-
-  const epData = await ep.json();
-
-  currentEpisodeId = epData[0].id;
-  currentPatientCode = code.value;
-
-  alert("Saved");
-}
-
-// ================= PATIENT LIST =================
-async function renderPatients(){
-
-  document.getElementById("content").innerHTML = `
-    <h3>👥 Patients</h3>
-    <div id="list"></div>
-  `;
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/patients?select=*`,{
-    headers:headers()
-  });
-
-  const data = await res.json();
-
-  let html = "";
-
-  data.forEach(p=>{
-    html+=`
-      <div onclick="selectPatient('${p.id}','${p.code}')"
-      style="border:1px solid #ccc;padding:10px;margin:5px;cursor:pointer">
-      ${p.code} - ${p.name}
-      </div>
-    `;
-  });
-
-  list.innerHTML = html;
-}
-
-async function selectPatient(id,code){
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/episodes?patient_id=eq.${id}`,{
-    headers:headers()
-  });
-
-  const data = await res.json();
-
-  currentEpisodeId = data[0].id;
-  currentPatientCode = code;
-
-  alert("Selected "+code);
+  document.getElementById("patient_code").value = code;
+  localStorage.setItem("counter", parseInt(counter) + 1);
 }
 
 // ================= DIAGNOSIS =================
-function renderDiagnosis(){
+function renderDiagnosis() {
   document.getElementById("content").innerHTML = `
-    <h3>🧪 Diagnosis (${currentPatientCode||""})</h3>
+  <h3>🧪 Diagnosis</h3>
 
-    RIF Pattern<br>
-    <select id="rif">
-      <option>MTB Negative</option>
-      <option>RIF Resistant</option>
-    </select><br><br>
+  RIF Pattern<br>
+  <select>
+    <option>MTB Not Detected</option>
+    <option>MTB Detected - Rifampicin Susceptible</option>
+    <option>MTB Detected - Rifampicin Resistant</option>
+    <option>MTB Detected - Rifampicin Indeterminate</option>
+    <option>MTB Trace Detected</option>
+    <option>Invalid / Error</option>
+  </select><br>
 
-    NPOC Pattern<br>
-    <select id="npoc">
-      <option>MTB Detected</option>
-      <option>MTB Not Detected</option>
-    </select><br><br>
+  XDR Test Result<br>
+  <select>
+    <option>MTB Detected</option>
+    <option>MTB Not Detected</option>
+    <option>Invalid / Error</option>
+  </select><br>
 
-    XDR Pattern<br>
-    INH <input id="inh"><br>
-    FQ <input id="fq"><br>
-    Inj <input id="inj"><br>
-    Eto <input id="eto"><br><br>
+  INH<br>
+  <select>
+    <option>Susceptible</option>
+    <option>High Dose Resistant</option>
+    <option>Low Dose Resistant</option>
+    <option>Indeterminate</option>
+  </select><br>
 
-    <button onclick="saveDiagnosis()">Save</button>
+  FQ<br>
+  <select>
+    <option>Susceptible</option>
+    <option>High Dose Resistant</option>
+    <option>Low Dose Resistant</option>
+    <option>Indeterminate</option>
+  </select><br>
+
+  Injection<br>
+  <select>
+    <option>Susceptible</option>
+    <option>Resistant</option>
+    <option>Indeterminate</option>
+  </select><br>
+
+  Eto<br>
+  <select>
+    <option>Susceptible</option>
+    <option>Resistant</option>
+    <option>Indeterminate</option>
+  </select><br>
+
+  <button>Save</button>
   `;
-}
-
-async function saveDiagnosis(){
-
-  await fetch(`${SUPABASE_URL}/rest/v1/episodes?id=eq.${currentEpisodeId}`,{
-    method:"PATCH",
-    headers:headers(),
-    body:JSON.stringify({
-      rif: rif.value,
-      npoc: npoc.value,
-      inh: inh.value,
-      fq: fq.value,
-      inj: inj.value,
-      eto: eto.value
-    })
-  });
-
-  alert("Saved");
 }
 
 // ================= TREATMENT =================
-function renderTreatment(){
+function renderTreatment() {
   document.getElementById("content").innerHTML = `
-    <h3>💊 Treatment (${currentPatientCode||""})</h3>
+  <h3>💊 Treatment</h3>
 
-    Start Date<br>
-    <input type="date" id="start"><br><br>
+  HIV Status<br>
+  <select>
+    <option>Positive</option>
+    <option>Negative</option>
+    <option>Unknown</option>
+  </select><br>
 
-    Regimen<br>
-    <select id="reg">
-      <option>2HRZE/4HR</option>
-      <option>MDR Short</option>
-    </select><br><br>
+  DM Status<br>
+  <select>
+    <option>Yes</option>
+    <option>No</option>
+    <option>Unknown</option>
+  </select><br>
 
-    <button onclick="saveTreatment()">Start</button>
+  Other Comorbidities<br>
+  <input><br>
+
+  Start Date<br>
+  <input type="date"><br>
+
+  Regimen<br>
+  <select>
+    <option>2HPMZ-2HPM</option>
+    <option>2HRZE-2HR</option>
+    <option>2HRZ-4HR</option>
+    <option>2HRZE-4HR</option>
+    <option>3HRZE-5HRE</option>
+    <option>9REL</option>
+    <option>9HEL</option>
+    <option>9RECs</option>
+    <option>Other</option>
+  </select><br>
+
+  <button>Start</button>
   `;
 }
 
-async function saveTreatment(){
-  await fetch(`${SUPABASE_URL}/rest/v1/episodes?id=eq.${currentEpisodeId}`,{
-    method:"PATCH",
-    headers:headers(),
-    body:JSON.stringify({
-      start_date:start.value,
-      regimen:reg.value,
-      status:"On Treatment"
-    })
-  });
-  alert("Started");
-}
-
-// ================= FOLLOWUP =================
-function renderFollowup(){
+// ================= FOLLOW-UP =================
+function renderFollowup() {
   document.getElementById("content").innerHTML = `
-    <h3>📊 Follow-up (${currentPatientCode||""})</h3>
+  <h3>📊 Follow-up</h3>
 
-    Month <input id="month"><br><br>
-    Weight <input id="weight"><br><br>
+  Month<br><input><br>
+  Weight (kg)<br><input><br>
 
-    Smear
-    <select id="smear">
-      <option>+</option><option>++</option>
-    </select><br><br>
+  Smear<br>
+  <select>
+    <option>Negative</option>
+    <option>Scanty</option>
+    <option>+</option>
+    <option>++</option>
+    <option>+++</option>
+  </select><br>
 
-    AE<br>
-    <textarea id="ae"></textarea><br><br>
+  Adverse Events<br>
+  <textarea></textarea><br>
 
-    <button onclick="saveFollowup()">Save</button>
+  Regimen Change<br>
+  <select id="change" onchange="toggleRegimenChange()">
+    <option>No</option>
+    <option>Yes</option>
+  </select><br>
+
+  <div id="newRegimenBox" style="display:none;">
+    New Regimen<br>
+    <select>
+      <option>2HPMZ-2HPM</option>
+      <option>2HRZE-2HR</option>
+      <option>2HRZ-4HR</option>
+      <option>2HRZE-4HR</option>
+      <option>3HRZE-5HRE</option>
+      <option>9REL</option>
+      <option>9HEL</option>
+      <option>9RECs</option>
+      <option>Other</option>
+    </select><br>
+  </div>
+
+  <button>Save</button>
   `;
 }
 
-async function saveFollowup(){
-  await fetch(`${SUPABASE_URL}/rest/v1/followups`,{
-    method:"POST",
-    headers:headers(),
-    body:JSON.stringify([{
-      episode_id:currentEpisodeId,
-      month:month.value,
-      weight:weight.value,
-      smear:smear.value,
-      ae:ae.value
-    }])
-  });
-  alert("Saved");
+function toggleRegimenChange() {
+  document.getElementById("newRegimenBox").style.display =
+    document.getElementById("change").value === "Yes" ? "block" : "none";
 }
 
 // ================= OUTCOME =================
-function renderOutcome(){
+function renderOutcome() {
   document.getElementById("content").innerHTML = `
-    <h3>🏁 Outcome (${currentPatientCode||""})</h3>
+  <h3>🏁 Outcome</h3>
 
-    <select id="outcome" onchange="toggleDeath()">
-      <option>Cured</option>
-      <option>Completed</option>
-      <option>Died</option>
-    </select><br><br>
+  Outcome<br>
+  <select id="outcome" onchange="toggleDeath()">
+    <option>Cured</option>
+    <option>Completed</option>
+    <option>Failed</option>
+    <option>Loss to Follow Up</option>
+    <option>Died</option>
+    <option>Not Evaluated</option>
+    <option>Reclassified as DRTB</option>
+  </select><br>
 
-    Date <input id="date"><br><br>
+  Outcome Date<br>
+  <input type="date"><br>
 
-    <div id="deathBox" style="display:none;">
-      Cause <input id="cause"><br><br>
-    </div>
+  <div id="deathBox" style="display:none;">
+    Date of Death<br>
+    <input type="date"><br>
 
-    <button onclick="saveOutcome()">Save</button>
+    Cause of Death<br>
+    <input><br>
+  </div>
+
+  <button>Save</button>
   `;
 }
 
-function toggleDeath(){
-  deathBox.style.display = outcome.value==="Died"?"block":"none";
+function toggleDeath() {
+  document.getElementById("deathBox").style.display =
+    document.getElementById("outcome").value === "Died" ? "block" : "none";
 }
 
-async function saveOutcome(){
-  await fetch(`${SUPABASE_URL}/rest/v1/outcomes`,{
-    method:"POST",
-    headers:headers(),
-    body:JSON.stringify([{
-      episode_id:currentEpisodeId,
-      outcome:outcome.value,
-      date:date.value,
-      cause:cause?.value
-    }])
-  });
-  alert("Saved");
-}
-
-// START
-showTab("patients");
+// INIT
+showTab('screening');
 
 </script>
+
 </body>
 </html>
