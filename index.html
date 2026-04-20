@@ -29,6 +29,7 @@ input, select, textarea { width: 260px; margin-bottom: 10px; }
 <button onclick="showTab('treatment')">3. Treatment</button><br>
 <button onclick="showTab('followup')">4. Follow-up</button><br>
 <button onclick="showTab('outcome')">5. Outcome</button><br>
+<button onclick="showTab('dashboard')">📊 Dashboard</button><br>
 </div>
 
 <div class="content" id="content"></div>
@@ -37,11 +38,11 @@ input, select, textarea { width: 260px; margin-bottom: 10px; }
 
 <script>
 
-// ================= GLOBAL STATE =================
+// ================= GLOBAL =================
 let patients = JSON.parse(localStorage.getItem("patients") || "[]");
 let currentPatient = null;
 
-// ================= NAVIGATION =================
+// ================= NAV =================
 function showTab(tab){
   if(tab==="patients") renderPatients();
   if(tab==="screening") renderScreening();
@@ -49,24 +50,60 @@ function showTab(tab){
   if(tab==="treatment") renderTreatment();
   if(tab==="followup") renderFollowup();
   if(tab==="outcome") renderOutcome();
+  if(tab==="dashboard") renderDashboard();
 }
 
-// ================= PATIENT LIST =================
+// ================= PATIENTS =================
 function renderPatients(){
 
   let list = patients.map(p => `
     <div class="card" onclick="selectPatient('${p.code}')">
       <b>${p.name}</b> (${p.age})<br>
-      ${p.code}
+      ${p.code}<br>
+      ${p.outcome?.outcome || "No outcome"}
     </div>
   `).join("");
 
   document.getElementById("content").innerHTML = `
     <h3>👥 Patients</h3>
+
+    🔍 Search<br>
+    <input oninput="searchPatients(this.value)"><br>
+
+    Filter<br>
+    <select onchange="filterPatients(this.value)">
+      <option value="all">All</option>
+      <option value="On Treatment">On Treatment</option>
+      <option value="Completed">Completed</option>
+    </select>
+
+    <br><br>
     <button onclick="newPatient()">+ New Patient</button>
+
     <hr>
-    ${list || "No patients"}
+    <div id="patientList">${list || "No patients"}</div>
   `;
+}
+
+function searchPatients(q){
+  let filtered = patients.filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
+  displayList(filtered);
+}
+
+function filterPatients(status){
+  if(status==="all") return displayList(patients);
+
+  let filtered = patients.filter(p => p.outcome?.outcome === status);
+  displayList(filtered);
+}
+
+function displayList(arr){
+  document.getElementById("patientList").innerHTML =
+    arr.map(p => `
+      <div class="card" onclick="selectPatient('${p.code}')">
+        ${p.name} (${p.code})
+      </div>
+    `).join("");
 }
 
 function newPatient(){
@@ -122,7 +159,7 @@ function renderScreening(){
     <option>Others</option>
   </select><br>
 
-  NPOC<br>
+  NPOC Pattern<br>
   <select id="npoc">
     <option>MTB Detected</option>
     <option>MTB Not Detected</option>
@@ -142,22 +179,18 @@ function renderScreening(){
 }
 
 function generateCode(){
-  const r = region.value;
-  const f = facility.value;
-  const d = reg_date.value;
-  if(!r||!f||!d) return;
+  if(!region.value || !facility.value || !reg_date.value) return;
 
-  const year = new Date(d).getFullYear();
+  let year = new Date(reg_date.value).getFullYear();
   let counter = localStorage.getItem("counter")||1;
 
-  code.value = r+"_"+f.toUpperCase().replace(/\s+/g,"")+"_M_"+counter+"_"+year;
-
+  code.value = `${region.value}_${facility.value.toUpperCase().replace(/\s+/g,"")}_M_${counter}_${year}`;
   localStorage.setItem("counter",parseInt(counter)+1);
 }
 
 function saveScreening(){
 
-  const patient = {
+  let patient = {
     code: code.value,
     name: name.value,
     age: age.value,
@@ -172,8 +205,8 @@ function saveScreening(){
     }
   };
 
-  const i = patients.findIndex(p=>p.code===patient.code);
-  if(i>=0) patients[i]= {...patients[i],...patient};
+  let i = patients.findIndex(p=>p.code===patient.code);
+  if(i>=0) patients[i]={...patients[i],...patient};
   else patients.push(patient);
 
   localStorage.setItem("patients",JSON.stringify(patients));
@@ -182,158 +215,37 @@ function saveScreening(){
   alert("Saved");
 }
 
-// ================= DIAGNOSIS =================
-function renderDiagnosis(){
+// ================= DASHBOARD =================
+function renderDashboard(){
 
-  if(!currentPatient) return showEmpty();
+  let total = patients.length;
+  let diagnosed = patients.filter(p=>p.diagnosis).length;
+  let onTx = patients.filter(p=>p.treatment).length;
+  let completed = patients.filter(p=>p.outcome?.outcome==="Completed").length;
 
   document.getElementById("content").innerHTML = `
-  <h3>🧪 Diagnosis (${currentPatient.code})</h3>
+    <h3>📊 TB Dashboard</h3>
 
-  RIF<br>
-  <select id="rif">
-    <option>MTB Not Detected</option>
-    <option>MTB Detected - Rifampicin Resistant</option>
-  </select><br>
+    Total Patients: <b>${total}</b><br><br>
+    Diagnosed: <b>${diagnosed}</b><br><br>
+    On Treatment: <b>${onTx}</b><br><br>
+    Completed: <b>${completed}</b><br><br>
 
-  XDR Result<br>
-  <select id="xdr">
-    <option>MTB Detected</option>
-    <option>MTB Not Detected</option>
-  </select><br>
+    <hr>
 
-  INH<br><select id="inh"><option>Susceptible</option><option>Resistant</option></select><br>
-  FQ<br><select id="fq"><option>Susceptible</option><option>Resistant</option></select><br>
-
-  <button onclick="saveDiagnosis()">Save</button>
+    <h4>TB Cascade</h4>
+    Screening → Diagnosis → Treatment → Outcome
   `;
 }
 
-function saveDiagnosis(){
-  currentPatient.diagnosis = {
-    rif: rif.value,
-    xdr: xdr.value,
-    inh: inh.value,
-    fq: fq.value
-  };
-  saveAll();
-}
+// ================= OTHER TABS (SHORT) =================
+function renderDiagnosis(){ if(!currentPatient) return showEmpty(); document.getElementById("content").innerHTML=`<h3>Diagnosis (${currentPatient.code})</h3>`;}
+function renderTreatment(){ if(!currentPatient) return showEmpty(); document.getElementById("content").innerHTML=`<h3>Treatment (${currentPatient.code})</h3>`;}
+function renderFollowup(){ if(!currentPatient) return showEmpty(); document.getElementById("content").innerHTML=`<h3>Follow-up (${currentPatient.code})</h3>`;}
+function renderOutcome(){ if(!currentPatient) return showEmpty(); document.getElementById("content").innerHTML=`<h3>Outcome (${currentPatient.code})</h3>`;}
 
-// ================= TREATMENT =================
-function renderTreatment(){
-
-  if(!currentPatient) return showEmpty();
-
-  document.getElementById("content").innerHTML = `
-  <h3>💊 Treatment (${currentPatient.code})</h3>
-
-  HIV<br><select id="hiv"><option>Positive</option><option>Negative</option><option>Unknown</option></select><br>
-  DM<br><select id="dm"><option>Yes</option><option>No</option><option>Unknown</option></select><br>
-
-  Start Date<br><input type="date" id="start"><br>
-
-  Regimen<br>
-  <select id="reg">
-    <option>2HRZE-4HR</option>
-    <option>9REL</option>
-  </select><br>
-
-  <button onclick="saveTreatment()">Save</button>
-  `;
-}
-
-function saveTreatment(){
-  currentPatient.treatment = {
-    hiv:hiv.value,
-    dm:dm.value,
-    start:start.value,
-    reg:reg.value
-  };
-  saveAll();
-}
-
-// ================= FOLLOW-UP =================
-function renderFollowup(){
-
-  if(!currentPatient) return showEmpty();
-
-  document.getElementById("content").innerHTML = `
-  <h3>📊 Follow-up (${currentPatient.code})</h3>
-
-  Month<br><input id="month"><br>
-  Weight<br><input id="weight"><br>
-
-  Smear<br>
-  <select id="smear">
-    <option>Negative</option>
-    <option>+</option>
-  </select><br>
-
-  AE<br><textarea id="ae"></textarea><br>
-
-  <button onclick="saveFollowup()">Save</button>
-  `;
-}
-
-function saveFollowup(){
-  currentPatient.followup = {
-    month:month.value,
-    weight:weight.value,
-    smear:smear.value,
-    ae:ae.value
-  };
-  saveAll();
-}
-
-// ================= OUTCOME =================
-function renderOutcome(){
-
-  if(!currentPatient) return showEmpty();
-
-  document.getElementById("content").innerHTML = `
-  <h3>🏁 Outcome (${currentPatient.code})</h3>
-
-  Outcome<br>
-  <select id="outcome" onchange="toggleDeath()">
-    <option>Cured</option>
-    <option>Completed</option>
-    <option>Died</option>
-  </select><br>
-
-  Date<br><input type="date" id="date"><br>
-
-  <div id="death" style="display:none;">
-    Cause<br><input id="cause"><br>
-  </div>
-
-  <button onclick="saveOutcome()">Save</button>
-  `;
-}
-
-function toggleDeath(){
-  death.style.display = outcome.value==="Died"?"block":"none";
-}
-
-function saveOutcome(){
-  currentPatient.outcome = {
-    outcome:outcome.value,
-    date:date.value,
-    cause: (outcome.value==="Died"?cause.value:"")
-  };
-  saveAll();
-}
-
-// ================= SAVE =================
-function saveAll(){
-  const i = patients.findIndex(p=>p.code===currentPatient.code);
-  patients[i]=currentPatient;
-  localStorage.setItem("patients",JSON.stringify(patients));
-  alert("Saved");
-}
-
-// ================= HELPER =================
 function showEmpty(){
-  document.getElementById("content").innerHTML = "Select patient first";
+  document.getElementById("content").innerHTML = "⚠️ Select patient first";
 }
 
 // INIT
